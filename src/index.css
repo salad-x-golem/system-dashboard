@@ -116,5 +116,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Google Sans Flex", system-ui, sans-serif;
+  }
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-family: "Google Sans Code", ui-monospace, monospace;
   }
 }

@@ -19,3 +19,6 @@ export {
   useMachines,
   useMachineWithProviders,
 } from "./hooks/useMachines";
+export { MachineDetailPage } from "./pages/machine-detail-page";
+// Pages
+export { MachinesPage } from "./pages/machines-page";
