@@ -232,7 +232,7 @@ export async function getMachineProviders(machineId: string): Promise<Provider[]
   if (!match) return null;
 
   const secret = window.localStorage.getItem("secret_token");
-  const query = await fetch(`https://rock.vanity.market/${secret}/process_info.json`);
+  const query = await fetch(`https://polygongas.org/${secret}/process_info.json`);
   const json = await query.json();
 
   const providers = json as Provider[];
