@@ -237,7 +237,7 @@ export function MachineDetailPage() {
             Working: {machine.summary.working}
           </Badge>
           <Badge variant="outline" className="text-yellow-600">
-            Stale: {machine.summary.stale}
+            Waiting: {machine.summary.waiting}
           </Badge>
           <Badge variant="outline" className="text-red-600">
             Unknown: {machine.summary.unknown}

@@ -1,7 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
   getMachines,
-  getMachine,
   getMachineProviders,
   getMachineWithProviders,
 } from "@/data/machines";
@@ -27,7 +26,7 @@ export const machineQueryOptions = (machineId: string) =>
   queryOptions({
     queryKey: machineKeys.detail(machineId),
     queryFn: () => {
-      const machine = getMachine(machineId);
+      const machine = getMachineWithProviders(machineId);
       if (!machine) {
         throw new Error(`Machine ${machineId} not found`);
       }

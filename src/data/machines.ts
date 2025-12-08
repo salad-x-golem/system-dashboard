@@ -30,7 +30,7 @@ export interface Provider {
 
 export interface MachineSummary {
   working: number;
-  stale: number;
+  waiting: number;
   unknown: number;
   total: number;
   working_percent: number;
@@ -150,13 +150,13 @@ function generateProviders(
 
 function calculateSummary(providers: Provider[]): MachineSummary {
   const working = providers.filter((p) => p.status === "working").length;
-  const stale = providers.filter((p) => p.status === "waiting").length;
+  const waiting = providers.filter((p) => p.status === "waiting").length;
   const unknown = providers.filter((p) => p.status === "unknown").length;
   const total = providers.length;
 
   return {
     working,
-    stale,
+    waiting,
     unknown,
     total,
     working_percent: total > 0 ? Math.round((working / total) * 1000) / 10 : 0,
@@ -249,14 +249,22 @@ export async function getMachineProviders(machineId: string): Promise<Provider[]
   return providers;
 }
 
-export function getMachineWithProviders(
+export async function getMachineWithProviders(
   machineId: string
-): MachineWithProviders | null {
+): Promise<MachineWithProviders | null> {
   const match = machineId.match(/^machine-(\d+)$/);
   if (!match) return null;
 
   const index = parseInt(match[1], 10);
   if (index < 0 || index >= TOTAL_MACHINES) return null;
 
-  return getOrGenerateMachine(index);
+  const machine = getOrGenerateMachine(index);
+
+  const providers = await getMachineProviders(machineId);
+
+
+  machine.providers = providers ?? [];
+  machine.summary = calculateSummary(machine.providers ?? []);
+
+  return machine;
 }

@@ -23,13 +23,13 @@ export function OverviewPage() {
     const totalMachines = machines.length;
     let totalProviders = 0;
     let workingProviders = 0;
-    let staleProviders = 0;
+    let waitingProviders = 0;
     let unknownProviders = 0;
 
     for (const machine of machines) {
       totalProviders += machine.summary.total;
       workingProviders += machine.summary.working;
-      staleProviders += machine.summary.stale;
+      waitingProviders += machine.summary.waiting;
       unknownProviders += machine.summary.unknown;
     }
 
@@ -58,7 +58,7 @@ export function OverviewPage() {
       totalMachines,
       totalProviders,
       workingProviders,
-      staleProviders,
+      waitingProviders,
       unknownProviders,
       overallHealthPercent,
       machinesWithIssues,
@@ -112,7 +112,7 @@ export function OverviewPage() {
               title="System Health"
               value={`${stats.overallHealthPercent}%`}
               subtitle={`${
-                stats.staleProviders + stats.unknownProviders
+                stats.waitingProviders + stats.unknownProviders
               } providers with issues`}
               variant={
                 stats.overallHealthPercent >= 80
