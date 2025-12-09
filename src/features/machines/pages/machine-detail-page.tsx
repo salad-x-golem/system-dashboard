@@ -1,4 +1,12 @@
-import { ArrowLeft, Clock, MapPin, RefreshCw, Server } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  RefreshCw,
+  Server,
+  XCircle,
+} from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +23,21 @@ import {
 } from "@/features/machines";
 import { useTableState } from "@/hooks";
 
+function BoolIndicator({ value, label }: { value: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {value ? (
+        <CheckCircle2 className="h-4 w-4 text-green-500" />
+      ) : (
+        <XCircle className="h-4 w-4 text-muted-foreground" />
+      )}
+      <span className={value ? "text-foreground" : "text-muted-foreground"}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 const columns: Column<Provider>[] = [
   {
     key: "id",
@@ -25,16 +48,40 @@ const columns: Column<Provider>[] = [
     ),
   },
   {
-    key: "type",
-    header: "Type",
+    key: "name",
+    header: "Name",
     sortable: true,
-    render: (provider) => <Badge variant="outline">{provider.type}</Badge>,
+    render: (provider) => <span className="text-sm">{provider.name}</span>,
   },
   {
     key: "status",
     header: "Status",
     sortable: true,
     render: (provider) => <StatusBadge status={provider.status} />,
+  },
+  {
+    key: "yagna_running",
+    header: "Yagna",
+    sortable: true,
+    render: (provider) => (
+      <BoolIndicator value={provider.yagna_running} label={provider.yagna_running ? "Running" : "Stopped"} />
+    ),
+  },
+  {
+    key: "provider_running",
+    header: "Provider",
+    sortable: true,
+    render: (provider) => (
+      <BoolIndicator value={provider.provider_running} label={provider.provider_running ? "Running" : "Stopped"} />
+    ),
+  },
+  {
+    key: "work",
+    header: "Working",
+    sortable: true,
+    render: (provider) => (
+      <BoolIndicator value={provider.work} label={provider.work ? "Yes" : "No"} />
+    ),
   },
   {
     key: "latency_ms",
@@ -53,14 +100,6 @@ const columns: Column<Provider>[] = [
       const date = new Date(provider.last_seen);
       return date.toLocaleString();
     },
-  },
-  {
-    key: "notes",
-    header: "Notes",
-    sortable: false,
-    render: (provider) => (
-      <span className="text-muted-foreground">{provider.notes || "—"}</span>
-    ),
   },
 ];
 
@@ -99,7 +138,7 @@ export function MachineDetailPage() {
     filteredCount,
   } = useTableState({
     data: providers,
-    searchFields: ["id", "type", "status", "notes"] as const,
+    searchFields: ["id", "name", "status"] as const,
     pageSize: 20,
   });
 
@@ -224,7 +263,7 @@ export function MachineDetailPage() {
             Working: {machine.summary.working}
           </Badge>
           <Badge variant="outline" className="text-yellow-600">
-            Stale: {machine.summary.stale}
+            Waiting: {machine.summary.waiting}
           </Badge>
           <Badge variant="outline" className="text-red-600">
             Unknown: {machine.summary.unknown}

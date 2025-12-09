@@ -1,10 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
-  getMachines,
-  getMachine,
-  getMachineProviders,
-  getMachineWithProviders,
-} from "@/data/machines";
+  fetchAllMachines,
+  fetchMachine,
+  fetchMachineProviders,
+  fetchMachineWithProviders,
+} from "@/data/api";
 
 export const machineKeys = {
   all: ["machines"] as const,
@@ -19,15 +19,15 @@ export const machineKeys = {
 export const machinesQueryOptions = () =>
   queryOptions({
     queryKey: machineKeys.list(),
-    queryFn: () => getMachines(),
+    queryFn: () => fetchAllMachines(),
     staleTime: 30_000, // 30 seconds
   });
 
 export const machineQueryOptions = (machineId: string) =>
   queryOptions({
     queryKey: machineKeys.detail(machineId),
-    queryFn: () => {
-      const machine = getMachine(machineId);
+    queryFn: async () => {
+      const machine = await fetchMachine(machineId);
       if (!machine) {
         throw new Error(`Machine ${machineId} not found`);
       }
@@ -39,21 +39,15 @@ export const machineQueryOptions = (machineId: string) =>
 export const machineProvidersQueryOptions = (machineId: string) =>
   queryOptions({
     queryKey: machineKeys.providers(machineId),
-    queryFn: () => {
-      const providers = getMachineProviders(machineId);
-      if (!providers) {
-        throw new Error(`Machine ${machineId} not found`);
-      }
-      return providers;
-    },
+    queryFn: () => fetchMachineProviders(machineId),
     staleTime: 30_000,
   });
 
 export const machineWithProvidersQueryOptions = (machineId: string) =>
   queryOptions({
     queryKey: machineKeys.withProviders(machineId),
-    queryFn: () => {
-      const machine = getMachineWithProviders(machineId);
+    queryFn: async () => {
+      const machine = await fetchMachineWithProviders(machineId);
       if (!machine) {
         throw new Error(`Machine ${machineId} not found`);
       }

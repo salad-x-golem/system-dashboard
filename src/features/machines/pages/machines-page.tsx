@@ -1,5 +1,7 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { AddMachineDialog } from "@/components/add-machine-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type Column, DataTable } from "@/components/ui/data-table";
@@ -8,81 +10,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { type Machine, useMachines } from "@/features/machines";
 import { useTableState } from "@/hooks";
-
-const columns: Column<Machine>[] = [
-  {
-    key: "machine_id",
-    header: "Machine ID",
-    sortable: true,
-    render: (machine) => (
-      <span className="font-mono text-sm">{machine.machine_id}</span>
-    ),
-  },
-  {
-    key: "hostname",
-    header: "Hostname",
-    sortable: true,
-    render: (machine) => machine.hostname,
-  },
-  {
-    key: "location",
-    header: "Location",
-    sortable: true,
-    render: (machine) => <Badge variant="outline">{machine.location}</Badge>,
-  },
-  {
-    key: "summary.total",
-    header: "Providers",
-    sortable: true,
-    render: (machine) => machine.summary.total,
-    className: "text-right",
-  },
-  {
-    key: "summary.working_percent",
-    header: "Health",
-    sortable: true,
-    render: (machine) => {
-      const percent = machine.summary.working_percent;
-      const variant =
-        percent >= 80 ? "default" : percent >= 50 ? "secondary" : "destructive";
-      return <Badge variant={variant}>{percent}%</Badge>;
-    },
-    className: "text-right",
-  },
-  {
-    key: "summary.working",
-    header: "Working",
-    sortable: true,
-    render: (machine) => (
-      <span className="text-green-600 dark:text-green-400">
-        {machine.summary.working}
-      </span>
-    ),
-    className: "text-right",
-  },
-  {
-    key: "summary.stale",
-    header: "Stale",
-    sortable: true,
-    render: (machine) => (
-      <span className="text-yellow-600 dark:text-yellow-400">
-        {machine.summary.stale}
-      </span>
-    ),
-    className: "text-right",
-  },
-  {
-    key: "summary.unknown",
-    header: "Unknown",
-    sortable: true,
-    render: (machine) => (
-      <span className="text-red-600 dark:text-red-400">
-        {machine.summary.unknown}
-      </span>
-    ),
-    className: "text-right",
-  },
-];
+import { removeMachine } from "@/lib/machines-storage";
 
 export function MachinesPage() {
   const navigate = useNavigate();
@@ -93,6 +21,110 @@ export function MachinesPage() {
     refetch,
     isFetching,
   } = useMachines();
+
+  const handleRemoveMachine = useCallback(
+    (e: React.MouseEvent, machineId: string) => {
+      e.stopPropagation();
+      removeMachine(machineId);
+      refetch();
+    },
+    [refetch]
+  );
+
+  const columns: Column<Machine>[] = [
+    {
+      key: "machine_id",
+      header: "Machine ID",
+      sortable: true,
+      render: (machine) => (
+        <span className="font-mono text-sm">{machine.machine_id}</span>
+      ),
+    },
+    {
+      key: "hostname",
+      header: "Hostname",
+      sortable: true,
+      render: (machine) => machine.hostname,
+    },
+    {
+      key: "location",
+      header: "Location",
+      sortable: true,
+      render: (machine) => <Badge variant="outline">{machine.location}</Badge>,
+    },
+    {
+      key: "summary.total",
+      header: "Providers",
+      sortable: true,
+      render: (machine) => machine.summary.total,
+      className: "text-right",
+    },
+    {
+      key: "summary.working_percent",
+      header: "Health",
+      sortable: true,
+      render: (machine) => {
+        const percent = machine.summary.working_percent;
+        const variant =
+          percent >= 80
+            ? "default"
+            : percent >= 50
+              ? "secondary"
+              : "destructive";
+        return <Badge variant={variant}>{percent}%</Badge>;
+      },
+      className: "text-right",
+    },
+    {
+      key: "summary.working",
+      header: "Working",
+      sortable: true,
+      render: (machine) => (
+        <span className="text-green-600 dark:text-green-400">
+          {machine.summary.working}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.waiting",
+      header: "Waiting",
+      sortable: true,
+      render: (machine) => (
+        <span className="text-yellow-600 dark:text-yellow-400">
+          {machine.summary.waiting}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.unknown",
+      header: "Unknown",
+      sortable: true,
+      render: (machine) => (
+        <span className="text-red-600 dark:text-red-400">
+          {machine.summary.unknown}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "actions",
+      header: "",
+      sortable: false,
+      render: (machine) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => handleRemoveMachine(e, machine.machine_id)}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ),
+      className: "w-12",
+    },
+  ];
 
   const {
     search,
@@ -127,16 +159,19 @@ export function MachinesPage() {
             View and manage all machines in your system
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <AddMachineDialog onMachineAdded={() => refetch()} />
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-4">

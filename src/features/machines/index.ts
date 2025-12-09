@@ -4,8 +4,7 @@ export type {
   MachineWithProviders,
   Provider,
   ProviderStatus,
-  ProviderType,
-} from "@/data/machines";
+} from "@/data/api";
 export {
   machineKeys,
   machineProvidersQueryOptions,
