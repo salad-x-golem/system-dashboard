@@ -3,7 +3,6 @@ const STORAGE_KEY = "dashboard-machines";
 export interface MachineConfig {
   id: string;
   name: string;
-  location: string;
   apiUrl: string;
 }
 

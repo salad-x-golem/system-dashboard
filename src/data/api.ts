@@ -45,7 +45,6 @@ export interface Machine {
   machine_id: string;
   hostname: string;
   name: string;
-  location: string;
   reported_at: string;
   summary: MachineSummary;
 }
@@ -124,7 +123,6 @@ export async function fetchMachineWithProviders(
     machine_id: machineConfig.id,
     hostname: machineConfig.name,
     name: machineConfig.name,
-    location: machineConfig.location,
     reported_at: new Date().toISOString(),
     summary,
     providers,
@@ -148,7 +146,6 @@ export async function fetchAllMachines(): Promise<Machine[]> {
           machine_id: machineConfig.id,
           hostname: machineConfig.name,
           name: machineConfig.name,
-          location: machineConfig.location,
           reported_at: new Date().toISOString(),
           summary,
         };
@@ -162,7 +159,6 @@ export async function fetchAllMachines(): Promise<Machine[]> {
           machine_id: machineConfig.id,
           hostname: machineConfig.name,
           name: machineConfig.name,
-          location: machineConfig.location,
           reported_at: new Date().toISOString(),
           summary: {
             working: 0,
@@ -196,7 +192,6 @@ export async function fetchMachine(machineId: string): Promise<Machine | null> {
       machine_id: machineConfig.id,
       hostname: machineConfig.name,
       name: machineConfig.name,
-      location: machineConfig.location,
       reported_at: new Date().toISOString(),
       summary,
     };

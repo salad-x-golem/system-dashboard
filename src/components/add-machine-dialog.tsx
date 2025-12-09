@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addMachine, type MachineConfig, slugify } from "@/lib/machines-storage";
+import { addMachine, getMachines, type MachineConfig, slugify } from "@/lib/machines-storage";
 
 interface AddMachineDialogProps {
   onMachineAdded?: () => void;
@@ -22,7 +22,6 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newId, setNewId] = useState("");
-  const [newLocation, setNewLocation] = useState("");
   const [newApiUrl, setNewApiUrl] = useState("");
   const [idManuallyEdited, setIdManuallyEdited] = useState(false);
 
@@ -30,10 +29,16 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
   const autoId = useMemo(() => slugify(newName), [newName]);
   const effectiveId = idManuallyEdited ? newId : autoId;
 
+  // Check if ID already exists
+  const isDuplicateId = useMemo(() => {
+    if (!effectiveId.trim()) return false;
+    const existingMachines = getMachines();
+    return existingMachines.some((m) => m.id === effectiveId.trim());
+  }, [effectiveId]);
+
   const resetForm = useCallback(() => {
     setNewName("");
     setNewId("");
-    setNewLocation("");
     setNewApiUrl("");
     setIdManuallyEdited(false);
   }, []);
@@ -44,7 +49,6 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
     const machine: MachineConfig = {
       id: effectiveId.trim(),
       name: newName.trim(),
-      location: newLocation.trim() || "Unknown",
       apiUrl: newApiUrl.trim(),
     };
 
@@ -52,7 +56,7 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
     resetForm();
     setOpen(false);
     onMachineAdded?.();
-  }, [newName, effectiveId, newLocation, newApiUrl, resetForm, onMachineAdded]);
+  }, [newName, effectiveId, newApiUrl, resetForm, onMachineAdded]);
 
   const handleIdChange = (value: string) => {
     setNewId(value);
@@ -66,7 +70,7 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
     }
   };
 
-  const isValid = newName.trim() && effectiveId.trim() && newApiUrl.trim();
+  const isValid = newName.trim() && effectiveId.trim() && newApiUrl.trim() && !isDuplicateId;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -101,19 +105,17 @@ export function AddMachineDialog({ onMachineAdded }: AddMachineDialogProps) {
               placeholder="e.g., geode-0"
               value={effectiveId}
               onChange={(e) => handleIdChange(e.target.value)}
+              className={isDuplicateId ? "border-red-500 focus-visible:ring-red-500" : ""}
             />
-            <p className="text-xs text-muted-foreground">
-              Used internally to identify the machine
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              placeholder="e.g., Falkenstein"
-              value={newLocation}
-              onChange={(e) => setNewLocation(e.target.value)}
-            />
+            {isDuplicateId ? (
+              <p className="text-xs text-red-500">
+                A machine with this ID already exists
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Used internally to identify the machine
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="apiUrl">API URL</Label>

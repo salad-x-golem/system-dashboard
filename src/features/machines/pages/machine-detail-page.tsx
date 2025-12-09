@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
-  MapPin,
   RefreshCw,
   Server,
   XCircle,
@@ -144,11 +143,11 @@ export function MachineDetailPage() {
 
   if (machineError || providersError) {
     return (
-      <div className="space-y-4">
-        <Link to="/machines">
+      <div className="min-h-screen bg-background p-8">
+        <Link to="/">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Machines
+            Back to Dashboard
           </Button>
         </Link>
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800">
@@ -160,18 +159,19 @@ export function MachineDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/machines">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {machineLoading ? "Loading..." : machine?.hostname}
-            </h1>
+    <div className="min-h-screen bg-background p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                {machineLoading ? "Loading..." : machine?.hostname}
+              </h1>
             <p className="font-mono text-muted-foreground">
               {machineLoading ? "" : machine?.machine_id}
             </p>
@@ -187,23 +187,13 @@ export function MachineDetailPage() {
 
       {/* Machine Info Cards */}
       {machineLoading ? (
-        <div className="grid gap-4 md:grid-cols-4">
-          <LoadingCard />
+        <div className="grid gap-4 md:grid-cols-3">
           <LoadingCard />
           <LoadingCard />
           <LoadingCard />
         </div>
       ) : machine ? (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Location</CardTitle>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold">{machine.location}</div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -312,6 +302,7 @@ export function MachineDetailPage() {
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );
