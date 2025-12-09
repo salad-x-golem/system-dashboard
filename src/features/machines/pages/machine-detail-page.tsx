@@ -75,14 +75,6 @@ const columns: Column<Provider>[] = [
     ),
   },
   {
-    key: "work",
-    header: "Working",
-    sortable: true,
-    render: (provider) => (
-      <BoolIndicator value={provider.work} label={provider.work ? "Yes" : "No"} />
-    ),
-  },
-  {
     key: "latency_ms",
     header: "Latency",
     sortable: true,
