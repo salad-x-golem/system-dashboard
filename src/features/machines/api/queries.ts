@@ -4,6 +4,7 @@ import {
   fetchMachine,
   fetchMachineProviders,
   fetchMachineWithProviders,
+  fetchProviderDetails,
 } from "@/data/api";
 
 export const machineKeys = {
@@ -13,6 +14,8 @@ export const machineKeys = {
   details: () => [...machineKeys.all, "detail"] as const,
   detail: (id: string) => [...machineKeys.details(), id] as const,
   providers: (id: string) => [...machineKeys.detail(id), "providers"] as const,
+  providerDetail: (machineId: string, providerId: string) =>
+    [...machineKeys.providers(machineId), providerId] as const,
   withProviders: (id: string) => [...machineKeys.detail(id), "full"] as const,
 };
 
@@ -52,6 +55,22 @@ export const machineWithProvidersQueryOptions = (machineId: string) =>
         throw new Error(`Machine ${machineId} not found`);
       }
       return machine;
+    },
+    staleTime: 30_000,
+  });
+
+export const providerDetailsQueryOptions = (
+  machineId: string,
+  providerId: string
+) =>
+  queryOptions({
+    queryKey: machineKeys.providerDetail(machineId, providerId),
+    queryFn: async () => {
+      const provider = await fetchProviderDetails(machineId, providerId);
+      if (!provider) {
+        throw new Error(`Provider ${providerId} not found`);
+      }
+      return provider;
     },
     staleTime: 30_000,
   });

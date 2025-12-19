@@ -3,6 +3,21 @@ import { getMachines, type MachineConfig } from "@/lib/machines-storage";
 // API response type (from backend)
 export type ProviderStatus = "unknown" | "waiting" | "working";
 
+export interface Agreement {
+  requestor_id: string;
+  agreement_id: string;
+  timestamp: string;
+  last_line: string;
+  link: string;
+}
+
+export interface ProviderWork {
+  offer_link: string;
+  provider_log_link: string;
+  yagna_log_link: string;
+  agreements: Agreement[];
+}
+
 export interface ProviderApiResponse {
   yagna_service: string;
   yagna_pids: number[];
@@ -15,7 +30,7 @@ export interface ProviderApiResponse {
   last_seen: string;
   latency_ms: number | null;
   notes: string | null;
-  work: unknown | null;
+  work: ProviderWork | null;
 }
 
 // Transformed types for UI
@@ -29,6 +44,15 @@ export interface Provider {
   last_seen: string;
   latency_ms: number | null;
   notes: string | null;
+}
+
+// Full provider details including work info
+export interface ProviderDetails extends Provider {
+  yagna_service: string;
+  yagna_pids: number[];
+  provider_service: string;
+  provider_pids: number[];
+  workDetails: ProviderWork | null;
 }
 
 export interface MachineSummary {
@@ -65,6 +89,20 @@ function transformProvider(apiProvider: ProviderApiResponse): Provider {
     last_seen: apiProvider.last_seen,
     latency_ms: apiProvider.latency_ms,
     notes: apiProvider.notes,
+  };
+}
+
+// Transform API response to ProviderDetails
+function transformProviderDetails(
+  apiProvider: ProviderApiResponse
+): ProviderDetails {
+  return {
+    ...transformProvider(apiProvider),
+    yagna_service: apiProvider.yagna_service,
+    yagna_pids: apiProvider.yagna_pids,
+    provider_service: apiProvider.provider_service,
+    provider_pids: apiProvider.provider_pids,
+    workDetails: apiProvider.work,
   };
 }
 
@@ -150,10 +188,7 @@ export async function fetchAllMachines(): Promise<Machine[]> {
           summary,
         };
       } catch (error) {
-        console.error(
-          `Failed to fetch machine ${machineConfig.id}:`,
-          error
-        );
+        console.error(`Failed to fetch machine ${machineConfig.id}:`, error);
         // Return machine with empty summary on error
         return {
           machine_id: machineConfig.id,
@@ -198,4 +233,29 @@ export async function fetchMachine(machineId: string): Promise<Machine | null> {
   } catch {
     return null;
   }
+}
+
+// Fetch a single provider with full details
+export async function fetchProviderDetails(
+  machineId: string,
+  providerId: string
+): Promise<ProviderDetails | null> {
+  const machines = getMachines();
+  const machineConfig = machines.find((m) => m.id === machineId);
+  if (!machineConfig) {
+    throw new Error(`Machine ${machineId} not found`);
+  }
+
+  const response = await fetch(machineConfig.apiUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch providers for ${machineId}`);
+  }
+  const data: ProviderApiResponse[] = await response.json();
+  const provider = data.find((p) => p.id === providerId);
+
+  if (!provider) {
+    return null;
+  }
+
+  return transformProviderDetails(provider);
 }

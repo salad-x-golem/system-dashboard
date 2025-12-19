@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  machinesQueryOptions,
-  machineQueryOptions,
   machineProvidersQueryOptions,
+  machineQueryOptions,
+  machinesQueryOptions,
   machineWithProvidersQueryOptions,
+  providerDetailsQueryOptions,
 } from "../api/queries";
 
 /**
@@ -40,5 +41,15 @@ export function useMachineWithProviders(machineId: string) {
   return useQuery({
     ...machineWithProvidersQueryOptions(machineId),
     enabled: !!machineId,
+  });
+}
+
+/**
+ * Hook to fetch detailed info for a single provider
+ */
+export function useProviderDetails(machineId: string, providerId: string) {
+  return useQuery({
+    ...providerDetailsQueryOptions(machineId, providerId),
+    enabled: !!machineId && !!providerId,
   });
 }
