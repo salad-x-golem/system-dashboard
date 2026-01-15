@@ -1,21 +1,33 @@
-const STORAGE_KEY = "dashboard-machines";
+export const STORAGE_KEY = "dashboard-machines";
+
+export type MachineType = "provider" | "requestor";
 
 export interface MachineConfig {
   id: string;
   name: string;
   apiUrl: string;
+  type: MachineType;
 }
 
 export function getMachines(): MachineConfig[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Backwards compatibility: default type to "provider" if not set
+      return parsed.map((m: Partial<MachineConfig>) => ({
+        ...m,
+        type: m.type ?? "provider",
+      }));
     }
   } catch {
     console.error("Failed to parse machines from localStorage");
   }
   return [];
+}
+
+export function getMachinesByType(type: MachineType): MachineConfig[] {
+  return getMachines().filter((m) => m.type === type);
 }
 
 export function saveMachines(machines: MachineConfig[]): void {

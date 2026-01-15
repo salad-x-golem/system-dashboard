@@ -1,6 +1,7 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { MachineDetailPage, ProviderDetailPage } from "@/features/machines";
+import { RequestorDetailPage } from "@/features/requestors";
 import { DashboardPage } from "@/pages/dashboard-page";
 
 function App() {
@@ -13,6 +14,10 @@ function App() {
           <Route
             path="/machines/:machineId/providers/:providerId"
             element={<ProviderDetailPage />}
+          />
+          <Route
+            path="/requestors/:requestorId"
+            element={<RequestorDetailPage />}
           />
         </Routes>
       </HashRouter>

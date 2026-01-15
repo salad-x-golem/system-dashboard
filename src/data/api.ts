@@ -1,4 +1,8 @@
-import { getMachines, type MachineConfig } from "@/lib/machines-storage";
+import {
+  getMachines,
+  getMachinesByType,
+  type MachineConfig,
+} from "@/lib/machines-storage";
 
 // API response type (from backend)
 export type ProviderStatus = "unknown" | "waiting" | "working";
@@ -169,7 +173,7 @@ export async function fetchMachineWithProviders(
 
 // Fetch all machines with their summaries
 export async function fetchAllMachines(): Promise<Machine[]> {
-  const machines = getMachines();
+  const machines = getMachinesByType("provider");
   const results = await Promise.all(
     machines.map(async (machineConfig: MachineConfig) => {
       try {

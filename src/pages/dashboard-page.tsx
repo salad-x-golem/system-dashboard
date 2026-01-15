@@ -1,4 +1,13 @@
-import { AlertTriangle, CheckCircle, RefreshCw, Server, Trash2 } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clipboard,
+  RefreshCw,
+  Server,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AddMachineDialog } from "@/components/add-machine-dialog";
@@ -11,8 +20,13 @@ import { LoadingCard, LoadingState } from "@/components/ui/loading-state";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { type Machine, useMachines } from "@/features/machines";
+import { type Requestor, useRequestors } from "@/features/requestors";
 import { useTableState } from "@/hooks";
-import { removeMachine } from "@/lib/machines-storage";
+import {
+  getMachines,
+  removeMachine,
+  STORAGE_KEY,
+} from "@/lib/machines-storage";
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -24,6 +38,14 @@ export function DashboardPage() {
     isFetching,
   } = useMachines();
 
+  const {
+    data: requestors,
+    isLoading: requestorsLoading,
+    error: requestorsError,
+    refetch: refetchRequestors,
+    isFetching: isFetchingRequestors,
+  } = useRequestors();
+
   const handleRemoveMachine = useCallback(
     (e: React.MouseEvent, machineId: string) => {
       e.stopPropagation();
@@ -33,25 +55,67 @@ export function DashboardPage() {
     [refetch]
   );
 
-  const stats = useMemo(() => {
-    if (!machines) return null;
+  const handleRemoveRequestor = useCallback(
+    (e: React.MouseEvent, requestorId: string) => {
+      e.stopPropagation();
+      removeMachine(requestorId);
+      refetchRequestors();
+    },
+    [refetchRequestors]
+  );
 
-    const totalMachines = machines.length;
+  const handleRefreshAll = useCallback(() => {
+    refetch();
+    refetchRequestors();
+  }, [refetch, refetchRequestors]);
+
+  const isAnyFetching = isFetching || isFetchingRequestors;
+
+  const stats = useMemo(() => {
+    if (!machines && !requestors) return null;
+
+    // Provider stats
+    const totalMachines = machines?.length ?? 0;
     let totalProviders = 0;
     let workingProviders = 0;
     let waitingProviders = 0;
     let unknownProviders = 0;
 
-    for (const machine of machines) {
+    for (const machine of machines ?? []) {
       totalProviders += machine.summary.total;
       workingProviders += machine.summary.working;
       waitingProviders += machine.summary.waiting;
       unknownProviders += machine.summary.unknown;
     }
 
-    const overallHealthPercent =
+    const providerHealthPercent =
       totalProviders > 0
         ? Math.round((workingProviders / totalProviders) * 1000) / 10
+        : 0;
+
+    // Requestor stats
+    const totalRequestors = requestors?.length ?? 0;
+    const onlineRequestors = requestors?.filter((r) => r.isOnline).length ?? 0;
+    const offlineRequestors = totalRequestors - onlineRequestors;
+    let totalWorkers = 0;
+    let activeWorkers = 0;
+    let idleWorkers = 0;
+    let errorWorkers = 0;
+    let totalSuccessfulIterations = 0;
+    let totalFailedIterations = 0;
+
+    for (const requestor of requestors ?? []) {
+      totalWorkers += requestor.summary.totalWorkers;
+      activeWorkers += requestor.summary.activeWorkers;
+      idleWorkers += requestor.summary.idleWorkers;
+      errorWorkers += requestor.summary.errorWorkers;
+      totalSuccessfulIterations += requestor.summary.totalSuccessfulIterations;
+      totalFailedIterations += requestor.summary.totalFailedIterations;
+    }
+
+    const requestorHealthPercent =
+      totalWorkers > 0
+        ? Math.round((activeWorkers / totalWorkers) * 1000) / 10
         : 0;
 
     return {
@@ -60,9 +124,19 @@ export function DashboardPage() {
       workingProviders,
       waitingProviders,
       unknownProviders,
-      overallHealthPercent,
+      providerHealthPercent,
+      totalRequestors,
+      onlineRequestors,
+      offlineRequestors,
+      totalWorkers,
+      activeWorkers,
+      idleWorkers,
+      errorWorkers,
+      requestorHealthPercent,
+      totalSuccessfulIterations,
+      totalFailedIterations,
     };
-  }, [machines]);
+  }, [machines, requestors]);
 
   const columns: Column<Machine>[] = [
     {
@@ -90,8 +164,8 @@ export function DashboardPage() {
           percent >= 80
             ? "default"
             : percent >= 50
-              ? "secondary"
-              : "destructive";
+            ? "secondary"
+            : "destructive";
         return <Badge variant={variant}>{percent}%</Badge>;
       },
       className: "text-right",
@@ -147,6 +221,122 @@ export function DashboardPage() {
     },
   ];
 
+  const requestorColumns: Column<Requestor>[] = [
+    {
+      key: "name",
+      header: "Name",
+      sortable: true,
+      render: (requestor) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{requestor.name}</span>
+          {!requestor.isOnline && (
+            <Badge variant="destructive" className="gap-1 text-xs">
+              <XCircle className="h-3 w-3" />
+              Offline
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "summary.totalWorkers",
+      header: "Workers",
+      sortable: true,
+      render: (requestor) => requestor.summary.totalWorkers,
+      className: "text-right",
+    },
+    {
+      key: "summary.healthPercent",
+      header: "Health",
+      sortable: true,
+      render: (requestor) => {
+        if (!requestor.isOnline) {
+          return <Badge variant="destructive">Offline</Badge>;
+        }
+        const percent = requestor.summary.healthPercent;
+        const variant =
+          percent >= 80
+            ? "default"
+            : percent >= 50
+            ? "secondary"
+            : "destructive";
+        return <Badge variant={variant}>{percent}%</Badge>;
+      },
+      className: "text-right",
+    },
+    {
+      key: "summary.activeWorkers",
+      header: "Active",
+      sortable: true,
+      render: (requestor) => (
+        <span className="text-green-600 dark:text-green-400">
+          {requestor.summary.activeWorkers}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.idleWorkers",
+      header: "Idle",
+      sortable: true,
+      render: (requestor) => (
+        <span className="text-yellow-600 dark:text-yellow-400">
+          {requestor.summary.idleWorkers}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.errorWorkers",
+      header: "Error",
+      sortable: true,
+      render: (requestor) => (
+        <span className="text-red-600 dark:text-red-400">
+          {requestor.summary.errorWorkers}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.totalSuccessfulIterations",
+      header: "Successful",
+      sortable: true,
+      render: (requestor) => (
+        <span className="text-green-600 dark:text-green-400">
+          {requestor.summary.totalSuccessfulIterations.toLocaleString()}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "summary.totalFailedIterations",
+      header: "Failed",
+      sortable: true,
+      render: (requestor) => (
+        <span className="text-red-600 dark:text-red-400">
+          {requestor.summary.totalFailedIterations.toLocaleString()}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "actions",
+      header: "",
+      sortable: false,
+      render: (requestor) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => handleRemoveRequestor(e, requestor.requestor_id)}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ),
+      className: "w-12",
+    },
+  ];
+
   const {
     search,
     setSearch,
@@ -163,7 +353,23 @@ export function DashboardPage() {
     pageSize: 20,
   });
 
-  if (error) {
+  const {
+    search: requestorSearch,
+    setSearch: setRequestorSearch,
+    sort: requestorSort,
+    handleSort: handleRequestorSort,
+    currentPage: requestorCurrentPage,
+    setCurrentPage: setRequestorCurrentPage,
+    totalPages: requestorTotalPages,
+    paginatedData: requestorPaginatedData,
+    filteredCount: requestorFilteredCount,
+  } = useTableState({
+    data: requestors,
+    searchFields: ["requestor_id", "name"] as const,
+    pageSize: 20,
+  });
+
+  if (error && requestorsError) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
@@ -183,16 +389,32 @@ export function DashboardPage() {
             <h1 className="text-xl font-bold">System Dashboard</h1>
           </div>
           <div className="flex items-center gap-2">
-            <AddMachineDialog onMachineAdded={() => refetch()} />
+            <AddMachineDialog onMachineAdded={handleRefreshAll} />
             <Button
               variant="outline"
-              onClick={() => refetch()}
-              disabled={isFetching}
+              onClick={handleRefreshAll}
+              disabled={isAnyFetching}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${
+                  isAnyFetching ? "animate-spin" : ""
+                }`}
               />
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const machines = getMachines();
+                const command = `localStorage.setItem(${JSON.stringify(
+                  STORAGE_KEY
+                )}, ${JSON.stringify(JSON.stringify(machines))})`;
+                navigator.clipboard.writeText(command);
+              }}
+              title="Copy config to clipboard"
+            >
+              <Clipboard className="h-4 w-4" />
             </Button>
             <ThemeToggle />
           </div>
@@ -201,30 +423,50 @@ export function DashboardPage() {
 
       <main className="mx-auto max-w-7xl space-y-6 p-6">
         {/* Stats Cards */}
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-3">
+        {isLoading && requestorsLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <LoadingCard />
             <LoadingCard />
             <LoadingCard />
             <LoadingCard />
           </div>
         ) : stats ? (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Providers Card */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Machines</CardTitle>
+                <CardTitle className="text-sm font-medium">Providers</CardTitle>
                 <Server className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalMachines}</div>
+                <div className="text-2xl font-bold">
+                  {stats.totalProviders.toLocaleString()}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <span className="text-green-600 dark:text-green-400">
+                    {stats.workingProviders} working
+                  </span>
+                  <span className="text-yellow-600 dark:text-yellow-400">
+                    {stats.waitingProviders} waiting
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {stats.unknownProviders} unknown
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  across {stats.totalMachines} machine
+                  {stats.totalMachines !== 1 ? "s" : ""}
+                </p>
               </CardContent>
             </Card>
 
+            {/* Provider Health Card */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  System Health
+                  Provider Health
                 </CardTitle>
-                {stats.overallHealthPercent >= 80 ? (
+                {stats.providerHealthPercent >= 80 ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 ) : (
                   <AlertTriangle className="h-4 w-4 text-yellow-500" />
@@ -232,61 +474,84 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {stats.overallHealthPercent}%
+                  {stats.providerHealthPercent}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats.waitingProviders + stats.unknownProviders} providers
-                  with issues
+                  {stats.waitingProviders + stats.unknownProviders} with issues
                 </p>
               </CardContent>
             </Card>
 
+            {/* Requestors Card */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Providers
+                  Requestors
                 </CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-                  <CardContent>
+              <CardContent>
                 <div className="text-2xl font-bold">
-                  {stats.totalProviders.toLocaleString()} total
+                  {stats.totalWorkers.toLocaleString()} workers
                 </div>
-                <div className="mt-2 flex gap-4 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-green-600 dark:text-green-400">Working:</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      {stats.workingProviders.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-yellow-600 dark:text-yellow-400">Waiting:</span>
-                    <span className="font-medium text-yellow-600 dark:text-yellow-400">
-                      {stats.waitingProviders.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-red-600 dark:text-red-400">Unknown:</span>
-                    <span className="font-medium text-red-600 dark:text-red-400">
-                      {stats.unknownProviders.toLocaleString()}
-                    </span>
-                  </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  <span className="text-green-600 dark:text-green-400">
+                    {stats.activeWorkers} active
+                  </span>
+                  <span className="text-yellow-600 dark:text-yellow-400">
+                    {stats.idleWorkers} idle
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {stats.errorWorkers} error
+                  </span>
                 </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {stats.onlineRequestors}/{stats.totalRequestors} online
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Iterations Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Iterations
+                </CardTitle>
+                {stats.requestorHealthPercent >= 80 ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : stats.totalWorkers > 0 ? (
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                ) : null}
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {stats.totalSuccessfulIterations.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  successful iterations
+                </p>
+                {stats.totalFailedIterations > 0 && (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    {stats.totalFailedIterations.toLocaleString()} failed
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
         ) : null}
 
-        {/* Machines Table */}
+        {/* Providers Table */}
         <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Providers</h2>
           <div className="flex items-center justify-between gap-4">
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Search machines..."
+              placeholder="Search providers..."
               className="w-80"
             />
             <div className="text-sm text-muted-foreground">
-              {filteredCount} machine{filteredCount !== 1 ? "s" : ""}
+              {filteredCount} provider{filteredCount !== 1 ? "s" : ""}
             </div>
           </div>
 
@@ -303,7 +568,7 @@ export function DashboardPage() {
                   navigate(`/machines/${machine.machine_id}`)
                 }
                 rowKey={(machine) => machine.machine_id}
-                emptyMessage="No machines configured. Click 'Add Machine' to get started."
+                emptyMessage="No providers configured. Click 'Add Machine' and select 'Provider' type."
               />
 
               {totalPages > 1 && (
@@ -312,6 +577,51 @@ export function DashboardPage() {
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Requestors Table */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Requestors</h2>
+          <div className="flex items-center justify-between gap-4">
+            <SearchInput
+              value={requestorSearch}
+              onChange={setRequestorSearch}
+              placeholder="Search requestors..."
+              className="w-80"
+            />
+            <div className="text-sm text-muted-foreground">
+              {requestorFilteredCount} requestor
+              {requestorFilteredCount !== 1 ? "s" : ""}
+            </div>
+          </div>
+
+          {requestorsLoading ? (
+            <LoadingState rows={5} />
+          ) : (
+            <>
+              <DataTable
+                data={requestorPaginatedData}
+                columns={requestorColumns}
+                sort={requestorSort}
+                onSort={handleRequestorSort}
+                onRowClick={(requestor) =>
+                  navigate(`/requestors/${requestor.requestor_id}`)
+                }
+                rowKey={(requestor) => requestor.requestor_id}
+                emptyMessage="No requestors configured. Click 'Add Machine' and select 'Requestor' type."
+              />
+
+              {requestorTotalPages > 1 && (
+                <div className="flex justify-center">
+                  <Pagination
+                    currentPage={requestorCurrentPage}
+                    totalPages={requestorTotalPages}
+                    onPageChange={setRequestorCurrentPage}
                   />
                 </div>
               )}
